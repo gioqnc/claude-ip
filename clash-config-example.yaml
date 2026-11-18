@@ -1,42 +1,51 @@
 # Clash Verge Rev / Mihomo 配置文件模板
 # 架构特色：
-# 1. 默认混合端口 7897：供电脑全局/TUN/日常软件使用，走普通 VPS 或国内直连，节省昂贵家宽。
-# 2. 独立监听端口 7900：直通【🏠 家宽分流】策略组，供 Claude Safe CLI 及指纹浏览器使用。
+# 1. 默认混合端口 7897 + TUN：供电脑日常软件使用，国内直连、海外走普通 VPS，无需维护复杂域名分流规则。
+# 2. 独立监听端口 7900：直通【🏠 家宽分流】策略组（select 不回落），供 Claude Safe 沙盒及指纹浏览器使用。
+# 3. 开启本地控制接口 127.0.0.1:9097：配合 toggle-proxy 一键切换日常海外出口（VPS ↔ 家宽），国内始终直连。
 
 mixed-port: 7897
 allow-lan: false
 mode: rule
-log-level: warning
-ipv6: true
+log-level: info
+ipv6: false
 unified-delay: true
+external-controller: 127.0.0.1:9097
+secret: ""
 
 dns:
   enable: true
-  ipv6: true
+  ipv6: false
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
-  fake-ip-filter: ['*.lan', '+.local', '+.msftconnecttest.com']
+  respect-rules: true
+  fake-ip-filter: ['*.lan', '+.local', '+.msftconnecttest.com', '+.msftncsi.com']
   default-nameserver: [223.5.5.5, 119.29.29.29]
-  nameserver: [https://doh.pub/dns-query, https://dns.alidns.com/dns-query]
   proxy-server-nameserver: [https://doh.pub/dns-query, 223.5.5.5]
+  direct-nameserver: [https://doh.pub/dns-query, https://dns.alidns.com/dns-query]
+  nameserver: [https://dns.cloudflare.com/dns-query, https://1.1.1.1/dns-query, 'tls://8.8.8.8:853']
   nameserver-policy:
     'geosite:cn': [https://doh.pub/dns-query, https://dns.alidns.com/dns-query]
     'geosite:geolocation-!cn': [https://dns.cloudflare.com/dns-query, https://1.1.1.1/dns-query, 'tls://8.8.8.8:853']
+  fallback: []
 
 tun:
-  auto-detect-interface: true
-  auto-route: true
+  enable: true
   device: Mihomo
+  stack: system
+  auto-route: true
+  auto-detect-interface: true
+  strict-route: true
   dns-hijack:
     - any:53
   mtu: 1500
-  stack: gvisor
-  strict-route: true
-  enable: true
+  # 若需手动排除自建 VPS IP 避免回环，可取消下面注释填写：
+  # route-exclude-address:
+  #   - 你的VPS_IP/32
 
 proxies:
   # 1. 你的普通外网 VPS 节点（供日常浏览/下载）
-  - name: 🇺🇸 US-自建VPS
+  - name: 🇺🇸 US-自建
     type: vless
     server: 你的VPS_IP
     port: 443
@@ -58,9 +67,8 @@ proxies:
     port: 10001
     username: 你的用户名
     password: 你的密码
-    udp: false
-    ip-version: ipv4
-    dialer-proxy: 🇺🇸 US-自建VPS
+    udp: true
+    dialer-proxy: 🇺🇸 US-自建
 
   - name: 🏠 Decodo-10002
     type: socks5
@@ -68,12 +76,11 @@ proxies:
     port: 10002
     username: 你的用户名
     password: 你的密码
-    udp: false
-    ip-version: ipv4
-    dialer-proxy: 🇺🇸 US-自建VPS
+    udp: true
+    dialer-proxy: 🇺🇸 US-自建
 
 # 专属独立入站监听端口（核心逻辑）
-# 7900: 所有连接 100% 绑定到家宽分流，不经过普通分流规则
+# 7900: 所有连接 100% 绑定到家宽分流，绕过常规规则与切换影响
 listeners:
   - name: claude-isp-mixed
     type: mixed
@@ -82,32 +89,26 @@ listeners:
     proxy: 🏠 家宽分流
 
 proxy-groups:
-  - name: PROXY
+  # 日常海外出口：默认走 VPS，需要临时让主浏览器切家宽时可用 toggle-proxy 一键切到 🏠 家宽分流
+  - name: 节点选择
     type: select
-    proxies: [🇺🇸 US-自建VPS]
+    proxies:
+      - 🇺🇸 US-自建
+      - 🏠 家宽分流
 
+  # 沙盒专用家宽组：必须保持 select（不自动故障转移，断流即断网，防止回落）
   - name: 🏠 家宽分流
     type: select
     proxies:
       - 🏠 Decodo-10002
       - 🏠 Decodo-10001
 
-  - name: Claude
-    type: select
-    proxies: [🏠 家宽分流, 🇺🇸 US-自建VPS]
-
 rules:
-  # 局域网与国内直连
+  # 局域网与国内直连（无需再维护复杂海外域名分流规则）
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
   - GEOIP,LAN,DIRECT,no-resolve
   - GEOSITE,cn,DIRECT
   - GEOIP,CN,DIRECT,no-resolve
 
-  # Claude 相关域名导向家宽
-  - DOMAIN-SUFFIX,claude.ai,🏠 家宽分流
-  - DOMAIN-SUFFIX,claude.com,🏠 家宽分流
-  - DOMAIN-SUFFIX,anthropic.com,🏠 家宽分流
-  - DOMAIN-KEYWORD,anthropic,🏠 家宽分流
-  - DOMAIN-KEYWORD,claude,🏠 家宽分流
-
-  # 电脑其它所有日常外网流量走自建 VPS
-  - MATCH,PROXY
+  # 电脑其余所有海外流量走【节点选择】（日常为 VPS，可一键切换为家宽）
+  - MATCH,节点选择

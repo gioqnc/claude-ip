@@ -1,0 +1,113 @@
+# Clash Verge Rev / Mihomo 配置文件模板
+# 架构特色：
+# 1. 默认混合端口 7897：供电脑全局/TUN/日常软件使用，走普通 VPS 或国内直连，节省昂贵家宽。
+# 2. 独立监听端口 7900：直通【🏠 家宽分流】策略组，供 Claude Safe CLI 及指纹浏览器使用。
+
+mixed-port: 7897
+allow-lan: false
+mode: rule
+log-level: warning
+ipv6: true
+unified-delay: true
+
+dns:
+  enable: true
+  ipv6: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter: ['*.lan', '+.local', '+.msftconnecttest.com']
+  default-nameserver: [223.5.5.5, 119.29.29.29]
+  nameserver: [https://doh.pub/dns-query, https://dns.alidns.com/dns-query]
+  proxy-server-nameserver: [https://doh.pub/dns-query, 223.5.5.5]
+  nameserver-policy:
+    'geosite:cn': [https://doh.pub/dns-query, https://dns.alidns.com/dns-query]
+    'geosite:geolocation-!cn': [https://dns.cloudflare.com/dns-query, https://1.1.1.1/dns-query, 'tls://8.8.8.8:853']
+
+tun:
+  auto-detect-interface: true
+  auto-route: true
+  device: Mihomo
+  dns-hijack:
+    - any:53
+  mtu: 1500
+  stack: gvisor
+  strict-route: true
+  enable: true
+
+proxies:
+  # 1. 你的普通外网 VPS 节点（供日常浏览/下载）
+  - name: 🇺🇸 US-自建VPS
+    type: vless
+    server: 你的VPS_IP
+    port: 443
+    uuid: 你的UUID
+    network: tcp
+    tls: true
+    udp: true
+    flow: xtls-rprx-vision
+    servername: www.amazon.com
+    client-fingerprint: chrome
+    reality-opts:
+      public-key: 你的公钥
+      short-id: 你的short_id
+
+  # 2. 家宽节点（SOCKS5 链式代理通过自建 VPS 中转）
+  - name: 🏠 Decodo-10001
+    type: socks5
+    server: isp.decodo.com
+    port: 10001
+    username: 你的用户名
+    password: 你的密码
+    udp: false
+    ip-version: ipv4
+    dialer-proxy: 🇺🇸 US-自建VPS
+
+  - name: 🏠 Decodo-10002
+    type: socks5
+    server: isp.decodo.com
+    port: 10002
+    username: 你的用户名
+    password: 你的密码
+    udp: false
+    ip-version: ipv4
+    dialer-proxy: 🇺🇸 US-自建VPS
+
+# 专属独立入站监听端口（核心逻辑）
+# 7900: 所有连接 100% 绑定到家宽分流，不经过普通分流规则
+listeners:
+  - name: claude-isp-mixed
+    type: mixed
+    listen: 127.0.0.1
+    port: 7900
+    proxy: 🏠 家宽分流
+
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies: [🇺🇸 US-自建VPS]
+
+  - name: 🏠 家宽分流
+    type: select
+    proxies:
+      - 🏠 Decodo-10002
+      - 🏠 Decodo-10001
+
+  - name: Claude
+    type: select
+    proxies: [🏠 家宽分流, 🇺🇸 US-自建VPS]
+
+rules:
+  # 局域网与国内直连
+  - GEOIP,LAN,DIRECT,no-resolve
+  - GEOSITE,cn,DIRECT
+  - GEOIP,CN,DIRECT,no-resolve
+
+  # Claude 相关域名导向家宽
+  - DOMAIN-SUFFIX,claude.ai,🏠 家宽分流
+  - DOMAIN-SUFFIX,claude.com,🏠 家宽分流
+  - DOMAIN-SUFFIX,anthropic.com,🏠 家宽分流
+  - DOMAIN-KEYWORD,anthropic,🏠 家宽分流
+  - DOMAIN-KEYWORD,claude,🏠 家宽分流
+
+  # 电脑其它所有日常外网流量走自建 VPS
+  - MATCH,PROXY

@@ -15,17 +15,18 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Claude 专属家宽沙盒启动中 (7900)      " -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-# 解析实际 claude.exe 二进制路径（兼容 npm 全局安装与 WinGet）
+# 解析实际 claude.exe 二进制路径（跳过 PATH 中的包装脚本，兼容 npm 与 WinGet）
 $ClaudeExe = $null
 $candidates = @(
     "$env:USERPROFILE\npm-global\node_modules\@anthropic-ai\claude-code\bin\claude.exe",
     "$env:APPDATA\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe",
     "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe\claude.exe"
 )
-$cmd = Get-Command claude -ErrorAction SilentlyContinue
-if ($cmd -and $cmd.Source) {
-    $cmdDir = Split-Path -Parent $cmd.Source
-    $candidates = @((Join-Path $cmdDir "node_modules\@anthropic-ai\claude-code\bin\claude.exe")) + $candidates
+Get-Command claude -All -ErrorAction SilentlyContinue | ForEach-Object {
+    if ($_.Source) {
+        $cmdDir = Split-Path -Parent $_.Source
+        $candidates += (Join-Path $cmdDir "node_modules\@anthropic-ai\claude-code\bin\claude.exe")
+    }
 }
 foreach ($c in $candidates) {
     if ($c -and (Test-Path -LiteralPath $c)) {
@@ -94,5 +95,10 @@ catch {
 
 Write-Host "[安全] 家宽节点校验通过，启动 Claude Code CLI...`n" -ForegroundColor Green
 
-# 3. 拉起 Claude Code 原生可执行文件，并透传参数
-& $ClaudeExe @args
+# 3. 保留当前工作目录并拉起 Claude Code 原生可执行文件（支持管道与透传参数）
+if ($MyInvocation.PipelineLength -gt 1) {
+    $input | & $ClaudeExe @args
+} else {
+    & $ClaudeExe @args
+}
+exit $LASTEXITCODE

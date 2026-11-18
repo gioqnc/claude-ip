@@ -19,10 +19,11 @@ $candidates = @(
     "$env:APPDATA\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe",
     "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe\claude.exe"
 )
-$cmd = Get-Command claude -ErrorAction SilentlyContinue
-if ($cmd -and $cmd.Source) {
-    $cmdDir = Split-Path -Parent $cmd.Source
-    $candidates = @((Join-Path $cmdDir "node_modules\@anthropic-ai\claude-code\bin\claude.exe")) + $candidates
+Get-Command claude -All -ErrorAction SilentlyContinue | ForEach-Object {
+    if ($_.Source) {
+        $cmdDir = Split-Path -Parent $_.Source
+        $candidates += (Join-Path $cmdDir "node_modules\@anthropic-ai\claude-code\bin\claude.exe")
+    }
 }
 foreach ($c in $candidates) {
     if ($c -and (Test-Path -LiteralPath $c)) {

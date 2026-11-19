@@ -107,6 +107,14 @@ rules:
   # 局域网与国内直连（无需再维护复杂海外域名分流规则）
   - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
   - GEOIP,LAN,DIRECT,no-resolve
+
+  # Claude / Anthropic 官方域名强制走家宽（防止沙盒外软件或未认代理环境变量的子进程回落到 VPS）
+  - DOMAIN-SUFFIX,claude.ai,🏠 家宽分流
+  - DOMAIN-SUFFIX,claude.com,🏠 家宽分流
+  - DOMAIN-SUFFIX,anthropic.com,🏠 家宽分流
+  - DOMAIN-SUFFIX,claudecdn.com,🏠 家宽分流
+  - DOMAIN-SUFFIX,claudeusercontent.com,🏠 家宽分流
+
   - GEOSITE,cn,DIRECT
   - GEOIP,CN,DIRECT,no-resolve
 

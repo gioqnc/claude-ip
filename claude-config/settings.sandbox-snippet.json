@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/clash-verge.yaml)",
+      "Read(**/clash-verge.yaml.*)",
+      "Read(**/io.github.clash-verge-rev.clash-verge-rev/**)",
+      "Read(**/Google/Chrome/User Data/**)",
+      "Read(**/Microsoft/Edge/User Data/**)",
+      "Read(**/decodo-*.txt)",
+      "Read(**/friend-clash-*.yaml)",
+      "Read(**/.claude/.credentials.json)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Read|Edit|Write|Grep|Glob|WebFetch|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"<你的python.exe绝对路径，如 E:/python3.13.2/python.exe>\" -B \"<你的用户目录，如 C:/Users/用户名>/.claude/hooks/sandbox-guard.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

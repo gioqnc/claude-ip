@@ -16,7 +16,12 @@
 - `toggle-proxy.bat` / `toggle-proxy.ps1`：日常海外出口一键切换脚本（通过 Clash `127.0.0.1:9097` 控制接口在 `🇺🇸 US-自建` ↔ `🏠 家宽分流` 间切换，自动保持 `rule` 模式、弹出系统通知，并只刷新经由 `节点选择` 的旧连接，不影响 `7900` 沙盒与国内直连）。
 - `setup-firewall.ps1`：Windows 防火墙规则部署脚本（锁定 `claude.exe`，并在桌面生成 `Claude Safe` 与 `切换家宽出口` 快捷方式）。
 - `一键配置防火墙-管理员.bat`：管理员提权安装入口（文件名不含括号，避免 Windows 右键“以管理员身份运行”触发 `cmd.exe /C` 括号截断问题；支持直接双击或右键管理员运行）。
-- `clash-config-example.yaml`：极简 Clash Verge Rev / Mihomo 配置模板（含 `7900` 独立监听端口与 `9097` 控制接口）。
+- `clash-config-example.yaml`：极简 Clash Verge Rev / Mihomo 配置模板（含 `7900` 独立监听端口、`9097` 控制接口，以及 `claude.ai` / `anthropic.com` 等域名强制走 `🏠 家宽分流` 的防串 IP 规则）。
+- `claude-config/`：Claude Code 侧的**工具级硬拦截 + 全局记忆防泄露模板**：
+  - `hooks/sandbox-guard.py`：`PreToolUse` 硬拦截脚本，在工具执行前直接拦截 `--cookies-from-browser`、`Claude in Chrome`/CDP、读浏览器 `User Data` / Clash 配置、`--noproxy`/清代理变量、访问 Clash 其他端口与 `9097`、本地 DNS/IP 探测（`ipconfig`/`nslookup`/STUN/国内测 IP）及不认代理变量的裸 `node` 外网请求；
+  - `settings.sandbox-snippet.json`：`~/.claude/settings.json` 中的 `permissions.deny` 与 `hooks.PreToolUse` 配置片段模板；
+  - `CLAUDE.sandbox-rules.md`：写入 `~/.claude/CLAUDE.md` 的全局沙盒防泄露铁律；
+  - `memory/sandbox-ip-dns-isolation.md` & `memory/agy-sandbox-verification.md`：项目自动记忆卡模板与 `agy` 实测放行记录。
 
 ---
 
@@ -27,7 +32,7 @@
 2. 核心配置要点：
    - `listeners` 开启 `127.0.0.1:7900` 绑定 `🏠 家宽分流`（`type: select`）；
    - `节点选择` 中放入 `[🇺🇸 US-自建, 🏠 家宽分流]`；
-   - `rules` 仅保留局域网/国内直连与 `MATCH,节点选择`；
+   - `rules` 仅保留局域网/国内直连、Claude/Anthropic 专属域名走 `🏠 家宽分流` 与 `MATCH,节点选择`；
    - 开启 `external-controller: 127.0.0.1:9097` 供一键切换按钮调用。
 3. 刷新并加载该配置（建议同时开启 Clash TUN 模式与防泄漏 Kill Switch）。
 
@@ -56,3 +61,13 @@
 首次使用执行 `claude login` 时：
 1. 终端打印出的登录 URL，**不要直接用未隔离的默认浏览器打开**。
 2. 复制该链接，在你的**指纹浏览器**（确保 WebRTC 设为替换/禁用，且代理配置为 `127.0.0.1:7900`）中打开并完成授权。
+
+---
+
+## Claude Code 防泄露硬拦截与记忆规则
+
+在换新电脑或重装环境时，可将 `claude-config/` 中的配置同步到 `~/.claude/`：
+1. 将 `claude-config/hooks/sandbox-guard.py` 复制到 `~/.claude/hooks/sandbox-guard.py`；
+2. 将 `claude-config/settings.sandbox-snippet.json` 中的 `permissions.deny` 与 `hooks.PreToolUse` 合并进 `~/.claude/settings.json`（并填写本机 `python.exe` 与用户目录绝对路径）；
+3. 将 `claude-config/CLAUDE.sandbox-rules.md` 写入 `~/.claude/CLAUDE.md`；
+4. 按需将 `claude-config/memory/*.md` 复制到对应项目的 `~/.claude/projects/<project>/memory/` 并在 `MEMORY.md` 索引。

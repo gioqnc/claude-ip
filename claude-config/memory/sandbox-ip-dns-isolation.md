@@ -8,7 +8,7 @@ metadata:
 ---
 
 1. 所有联网工具和子进程必须 100% 落在 `127.0.0.1:7900`（远程 DNS 代理如 `socks5h://`），严禁清除代理变量、`--proxy ""`、`--noproxy`、走其他 Clash 端口、直连或发起原生 UDP / 本地 DNS 查询（`nslookup`/`Resolve-DnsName`/`ping`/`dig` 等）。
-2. 本机 `node`（`v22.20.0`）原生 `fetch`/`http` 不认代理环境变量，严禁用裸 `node` 发外网请求；家宽流量无限，支持代理的 `npm` 或本地渲染不因省流量而禁用（但裸 `node` 外网请求仍绝对禁止）。
+2. 本机 `node`（`v22.20.0`）原生 `fetch`/`http` 不认代理环境变量，严禁手写裸 `node` 发任意外网请求；**但正常创作与开发工具明确白名单放行**：HyperFrames（含无头 Chrome 加载公开 CDN、`hyperframes add`、`media-use`）、Lemo-Opuscar、`npm`/`npx`、`agy`、`ffmpeg` 均正常使用，不要因内部可能走 Clash TUN（`fake-ip`）而停工。
 3. 严禁安装/调用 `Claude in Chrome` 或通过 CDP/自动化接入日常 Chrome/Edge，严禁使用 `--cookies-from-browser` 等越权读取浏览器 Cookie/登录库。
 4. 严禁读取或执行可能暴露宿主真实 IP、网卡/DNS 配置或 Clash 配置的命令与文件（`ipconfig`、`Get-NetIPAddress`、`Get-DnsClientServerAddress`、`clash-verge.yaml`、国内测 IP 接口等）。
 5. 遇到抖音、X 需登录内容等受阻场景，直接请用户自行保存/截图到本地文件后再处理，不跨权限试探。

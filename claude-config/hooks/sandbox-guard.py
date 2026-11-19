@@ -110,8 +110,8 @@ COMMAND_RULES = [
 def check_bare_node_network(cmd: str) -> str | None:
     if not re.search(r"\bnode(?:\.exe)?\b", cmd, re.IGNORECASE):
         return None
-    # Allow npm / npx / local hyperframes / statusline scripts
-    if re.search(r"\b(npm|npx)\b|statusline\.js|hyperframes", cmd, re.IGNORECASE):
+    # Allow npm / npx / local hyperframes / lemo-opuscar / media-use / statusline scripts
+    if re.search(r"\b(npm|npx)\b|statusline\.js|hyperframes|lemo-opuscar|media-use", cmd, re.IGNORECASE):
         return None
     has_net_api = re.search(r"\bfetch\s*\(|https?\.(?:request|get)\s*\(", cmd, re.IGNORECASE)
     has_external_url = re.search(

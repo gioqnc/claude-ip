@@ -1,6 +1,7 @@
 ﻿param(
     [switch]$StatusOnly,
-    [switch]$NoWait
+    [switch]$NoWait,
+    [string]$VpsNode = $env:CLAUDE_SAFE_VPS_NODE
 )
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -9,7 +10,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Stop"
 $ApiBase = "http://127.0.0.1:9097"
 $GroupName = "节点选择"
-$VpsNode = "🇺🇸 US-自建"
+$DefaultVpsNode = "🇺🇸 US-自建"
 $HomeGroup = "🏠 家宽分流"
 $EncodedGroup = [System.Uri]::EscapeDataString($GroupName)
 $EncodedHome = [System.Uri]::EscapeDataString($HomeGroup)
@@ -93,6 +94,21 @@ try {
 
 $currentNow = $groupInfo.now
 $homeNode = $homeInfo.now
+$allCandidates = @($groupInfo.all)
+
+# 自动解析日常海外节点名：优先参数/环境变量，其次默认名，否则自动取【节点选择】中首个非家宽项
+if (-not $VpsNode) {
+    if ($allCandidates -contains $DefaultVpsNode) {
+        $VpsNode = $DefaultVpsNode
+    } else {
+        $VpsNode = $allCandidates | Where-Object { $_ -ne $HomeGroup -and $_ -ne "DIRECT" -and $_ -ne "REJECT" } | Select-Object -First 1
+    }
+}
+if (-not $VpsNode) {
+    Write-Host "[错误] 未在 [$GroupName] 策略组中找到除 [$HomeGroup] 以外的日常海外节点。" -ForegroundColor Red
+    if (-not $NoWait) { pause }
+    exit 1
+}
 
 if ($StatusOnly) {
     Write-Host "========================================" -ForegroundColor Cyan
